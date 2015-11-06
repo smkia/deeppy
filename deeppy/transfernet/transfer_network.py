@@ -1,20 +1,14 @@
-from copy import copy
 import numpy as np
 import itertools
 from ..base import Model, ParamMixin, PhaseMixin, float_
 from ..input import Input
 
 
-class SiameseNetwork(Model, PhaseMixin):
-    def __init__(self, siamese_layers, loss):
-        self.layers = siamese_layers
+class TransferNetwork(Model, PhaseMixin):
+    def __init__(self, target_layers, source_layers, loss):
+        self.layers = target_layers
+        self.layers2 = source_layers
         self.loss = loss
-        # Create second array of layers
-        self.layers2 = [copy(layer) for layer in self.layers]
-        for layer1, layer2 in zip(self.layers, self.layers2):
-            if isinstance(layer1, ParamMixin):
-                # Replace weights in layers2 with shared weights
-               layer2._params = [p.share() for p in layer1._params]
         self.bprop_until = next((idx for idx, l in enumerate(self.layers)
                                  if isinstance(l, ParamMixin)), 0)
         self.layers[self.bprop_until].bprop_to_x = False
@@ -25,21 +19,25 @@ class SiameseNetwork(Model, PhaseMixin):
         # Setup layers sequentially
         if self._initialized:
             return
-        next_shape = x_shape
+        next_shape = x_shape[0:2]
         for layer in self.layers:
-            layer._setup(next_shape)
+            layer._setup(x_shape = next_shape)
             next_shape = layer.y_shape(next_shape)
-        next_shape = x_shape
+        next_shape = x_shape[0::2]
         for layer in self.layers2:
-            layer._setup(next_shape)
+            layer._setup(x_shape = next_shape)
             next_shape = layer.y_shape(next_shape)
         next_shape = self.loss.y_shape(next_shape)
         self._initialized = True
 
     @property
     def _params(self):
+        #if (i == 1):
         all_params = [layer._params for layer in self.layers
-                      if isinstance(layer, ParamMixin)]
+                          if isinstance(layer, ParamMixin)]
+        #elif (i == 2):
+        #    all_params = [layer._params for layer in self.layers2
+        #                  if isinstance(layer, ParamMixin)]
         # Concatenate lists in list
         return list(itertools.chain.from_iterable(all_params))
 
@@ -75,23 +73,39 @@ class SiameseNetwork(Model, PhaseMixin):
 
         return self.loss.loss(y, x1, x2)
 
-    def features(self, input):
-        self.phase = 'test'
+    def features(self, input, phase = 'train' ,domain = 'target'):
+        self.phase = phase
         input = Input.from_any(input)
-        next_shape = input.x.shape
-        for layer in self.layers:
-            next_shape = layer.y_shape(next_shape)
-        feats = np.empty(next_shape)
-        idx = 0
-        for batch in input.batches():
-            x_batch = batch['x']
-            x_next = x_batch
+        if domain == 'target':        
+            next_shape = input.x.shape
             for layer in self.layers:
-                x_next = layer.fprop(x_next)
-            feats_batch = np.array(x_next)
-            batch_size = x_batch.shape[0]
-            feats[idx:idx+batch_size, ...] = feats_batch
-            idx += batch_size
+                next_shape = layer.y_shape(next_shape)
+            feats = np.empty(next_shape)
+            idx = 0
+            for batch in input.batches(phase, domain):
+                x_batch = batch['x1']
+                x_next = x_batch
+                for layer in self.layers:
+                    x_next = layer.fprop(x_next)
+                feats_batch = np.array(x_next)
+                batch_size = x_batch.shape[0]
+                feats[idx:idx+batch_size, ...] = feats_batch
+                idx += batch_size
+        elif domain == 'source':        
+            next_shape = input.x2.shape
+            for layer in self.layers2:
+                next_shape = layer.y_shape(next_shape)
+            feats = np.empty(next_shape)
+            idx = 0
+            for batch in input.batches(phase, domain):
+                x_batch = batch['x2']
+                x_next = x_batch
+                for layer in self.layers2:
+                    x_next = layer.fprop(x_next)
+                feats_batch = np.array(x_next)
+                batch_size = x_batch.shape[0]
+                feats[idx:idx+batch_size, ...] = feats_batch
+                idx += batch_size
         return feats
 
     def distances(self, input):

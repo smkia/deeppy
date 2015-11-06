@@ -1,20 +1,20 @@
-from copy import copy
+from copy import deepcopy
 import numpy as np
 import itertools
 from ..base import Model, ParamMixin, PhaseMixin, float_
 from ..input import Input
 
 
-class SiameseNetwork(Model, PhaseMixin):
+class SiameseNetwork2(Model, PhaseMixin):
     def __init__(self, siamese_layers, loss):
         self.layers = siamese_layers
         self.loss = loss
         # Create second array of layers
-        self.layers2 = [copy(layer) for layer in self.layers]
-        for layer1, layer2 in zip(self.layers, self.layers2):
-            if isinstance(layer1, ParamMixin):
+        self.layers2 = [deepcopy(layer) for layer in self.layers]
+        #for layer1, layer2 in zip(self.layers, self.layers2):
+        #    if isinstance(layer1, ParamMixin):
                 # Replace weights in layers2 with shared weights
-               layer2._params = [p.share() for p in layer1._params]
+        #        layer2._params = [p.share() for p in layer1._params]
         self.bprop_until = next((idx for idx, l in enumerate(self.layers)
                                  if isinstance(l, ParamMixin)), 0)
         self.layers[self.bprop_until].bprop_to_x = False
@@ -38,8 +38,12 @@ class SiameseNetwork(Model, PhaseMixin):
 
     @property
     def _params(self):
+        #if (i == 1):
         all_params = [layer._params for layer in self.layers
-                      if isinstance(layer, ParamMixin)]
+                          if isinstance(layer, ParamMixin)]
+        #elif (i == 2):
+        #    all_params = [layer._params for layer in self.layers2
+        #                  if isinstance(layer, ParamMixin)]
         # Concatenate lists in list
         return list(itertools.chain.from_iterable(all_params))
 

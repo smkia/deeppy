@@ -101,6 +101,17 @@ class ReLU(Activation):
         ca.nnet.relu_d(self._tmp_x, self._tmp_x)
         return self._tmp_x * y_grad
 
+class Linear(Activation):
+    def __init__(self):
+        self.name = 'linear'
+
+    def fprop(self, x):
+        self._tmp_x = x
+        return x
+
+    def bprop(self, y_grad):
+        return y_grad
+
 
 class Sigmoid(Activation):
     def __init__(self):

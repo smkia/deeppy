@@ -5,7 +5,7 @@ from .autoencoder.stacked_autoencoder import StackedAutoencoder
 from .base import bool_, int_, float_
 from .feedforward.activation_layers import (
     Activation, LeakyReLU, ParametricReLU, ReLU, Sigmoid, Softmax, Softplus,
-    Tanh
+    Tanh, Linear
 )
 from .feedforward.neural_network import NeuralNetwork
 from .feedforward.layers import FullyConnected
@@ -24,6 +24,8 @@ from .preprocess.scalers import StandardScaler, UniformScaler
 from .siamese.input import SiameseInput, SupervisedSiameseInput
 from .siamese.loss import ContrastiveLoss
 from .siamese.siamese_network import SiameseNetwork
+from .transfernet.transfer_network import TransferNetwork
+from .transfernet.input import TransferInput, SupervisedTransferInput
 from .train.learn_rules import Adam, Momentum, RMSProp
 from .train.sgd import StochasticGradientDescent
 
